@@ -8,16 +8,12 @@
 
   <title>ZXing Barcdoe & Qrcode Decoding from camera</title>
 
-  <!--link rel="stylesheet" rel="preload" as="style" onload="this.rel='stylesheet';this.onload=null"
-    href="https://fonts.googleapis.com/css?family=Roboto:300,300italic,700,700italic"-->
-  <!--link rel="stylesheet" rel="preload" as="style" onload="this.rel='stylesheet';this.onload=null"
-    href="https://unpkg.com/normalize.css@8.0.0/normalize.css"-->
 	  <script type="text/javascript" src="https://unpkg.com/@zxing/library@latest"></script>
-  <link rel="stylesheet" rel="preload" as="style" onload="this.rel='stylesheet';this.onload=null"
-    href="https://unpkg.com/milligram@1.3.0/dist/milligram.min.css">
+  <!--link rel="stylesheet" rel="preload" as="style" onload="this.rel='stylesheet';this.onload=null"
+    href="https://unpkg.com/milligram@1.3.0/dist/milligram.min.css"-->
 	
 	 <style type="text/css">
-	h2, video, textarea, pre, footer{
+	h3, video, textarea, pre, footer{
 	margin-left:auto;
 	margin-right:auto;
 	display: block;
@@ -36,6 +32,14 @@
       .btns{
 	      float:right;
       }
+	  
+	  #img{
+		display: none;
+	  }
+	  #radio, #img{
+	  text-align: center;
+	
+	  }
       </style>
 </head>
 
@@ -44,29 +48,34 @@
   <main class="wrapper">
 
     <section class="container" id="demo-content">
-      <h2 class="title">Scan 1D/2D Code from Camera</h2>
+      <h3 class="title">Scan 1D/2D Code from Camera/Image</h3>
 
     
-      <div>
+      <div id="vid">
         <video id="video" width="300" height="200" style="border: 1px solid gray"></video>
       </div>
 	  
-		<!--div>
-        <a class="button" id="startButton">Start</a>
-        <a class="button" id="resetButton">Reset</a>
-      </div-->
+	   <div id="img">
+			<img  id="image" src="#" alt="decode image" width=300 height=200  style="border: 1px solid gray">
+			<input  type='file' />
+        </div>
 	  
-      <!--div id="sourceSelectPanel" style="display:none">
-        <label for="sourceSelect">Change video source:</label>
-        <select id="sourceSelect" style="max-width:400px">
-        </select>
-      </div-->
+		<div id="radio">
+		   <label>
+		  <input type="radio" id="camera" name="type" value="camera" checked />Camera 
+		 </label>
+		  <label>
+		  <input type="radio" id="image" name="type" value="image" /> Image 
+		   </label>
+		</div>
+
+		
 	<textarea  id="text" rows="8" cols=""></textarea>
     <div class="btns">
     	<input onclick="document.getElementById('text').value='';" value="CLEAR" type="button">
 	  <input value="COPY" onclick="document.getElementById('text').focus();document.getElementById('text').select();document.execCommand('copy')" type="button">
 	</div>
-      <label>History Results:</label>
+ 
 	  <ul id="result"></ul>
 	  
       <!--pre><code id="result"></code></pre-->
@@ -86,46 +95,93 @@
 
   <script type="text/javascript">
    // window.addEventListener('load', function () {
-      let selectedDeviceId;
-      const codeReader = new ZXing.BrowserMultiFormatReader()
+   	const codeReader = new ZXing.BrowserMultiFormatReader()
       console.log('ZXing code reader initialized')
-      codeReader.listVideoInputDevices()
-        .then((videoInputDevices) => {    
-          selectedDeviceId = videoInputDevices[0].deviceId
-		  console.log(videoInputDevices)
-          if (videoInputDevices.length >= 1) 
-				selectedDeviceId = videoInputDevices[1].deviceId
+      let selectedDeviceId;
+		
+		start_video();
+		
+		 var radios = document.querySelectorAll('input[type=radio][name=type]');
+			radios.forEach(radio => radio.addEventListener('change', () => {
+				if (radio.value == 'image'){
+						//codeReader.reset();
+						document.getElementById("vid").style.display = "none";
+						document.getElementById("img").style.display = "block";
+					}
+					else{
+						start_video();
+						document.getElementById("img").style.display = "none";
+						document.getElementById("vid").style.display = "block";
+				}
+			}));
 
-        })
-        .catch((err) => {
-          console.error(err)
-        })
 		
+		function start_video(){
 		
+			 codeReader.listVideoInputDevices()
+			.then((videoInputDevices) => {    
+			  selectedDeviceId = videoInputDevices[0].deviceId
+			  //console.log(videoInputDevices)
+			  if (videoInputDevices.length >= 1) 
+					selectedDeviceId = videoInputDevices[1].deviceId
+
+			})
+			.catch((err) => {
+			  console.error(err)
+			})
 		
-		codeReader.decodeFromVideoDevice(selectedDeviceId, 'video', (result, err) => {
+				//select video
+			codeReader.decodeFromVideoDevice(selectedDeviceId, 'video', (result, err) => {
                
 			  if (result) {
-                //console.log(document.getElementById('text').value)		
-					 
-				if (document.getElementById('text').value != result.text )
-				{
-					var node = document.createElement('li');
-					
-					node.appendChild( document.createTextNode(result.text) );
-					
-					document.getElementById('result').insertBefore(node, document.getElementById('result').childNodes[0]);
-				}
-				
-				document.getElementById('text').value = result.text;
+               	
+				show_result(result.text);
 				
               }
               if (err && !(err instanceof ZXing.NotFoundException)) {
                 console.error(err)
-                document.getElementById('result').textContent = err
               }
+			  
             })
-          console.log(`Started continous decode from camera with id ${selectedDeviceId}`)
+		
+		}
+		
+		
+			
+			//select image
+			document.querySelector('input[type="file"]').addEventListener('change', function() {
+	
+				if (this.files && this.files[0]) {
+				let img = document.getElementById('image');
+				
+				img.src = URL.createObjectURL(this.files[0]);
+				
+				codeReader.decodeFromImage(undefined, img.src).then((result) => {
+					
+				show_result(result.text);
+					//console.log(result)
+
+                }).catch((err) => {
+                    console.error(err)
+                })
+			
+
+				}
+			});
+			
+			function show_result(res){
+				if (document.getElementById('text').value != res )
+				{
+					var node = document.createElement('li');
+					
+					node.appendChild( document.createTextNode(res) );
+					
+					document.getElementById('result').insertBefore(node, document.getElementById('result').childNodes[0]);
+				}
+				
+				document.getElementById('text').value = res;
+			}
+          //console.log(`Started continous decode from camera with id ${selectedDeviceId}`)
    // })
   </script>
 
